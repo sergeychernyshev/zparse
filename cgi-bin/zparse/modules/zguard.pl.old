@@ -1,0 +1,176 @@
+zloadmodule 'services.pl';
+zloadmodule 'db.pl';
+
+sub zguard_zbefore_actual_process
+{
+    zinitcookies();
+    
+    if( $zparse2::MOD_PERL )
+    {
+    	$zparse2::GUARD = 0;
+	$zparse2::GUARDMETHOD = 'DBI';
+        $zparse2::GUARDDBD = 'mysql';
+	$zparse2::GUARDDBNAME = '';
+        $zparse2::GUARDDBUSER = '';
+	$zparse2::GUARDDBUSERPASS = '';
+        $zparse2::GUARDUSERTABLE = 'users';
+	$zparse2::GUARDPATH = '/';
+        $zparse2::GUARDALLOWANONYMOUS = 0;
+	$zparse2::GUARDANONYMOUSUSER = 'anonymous';
+        $zparse2::GUARDDEFAULTRIGHT = 'default';
+	$zparse2::GUARDREALM = 'default';
+        $zparse2::GUARDUSER = '';
+	$zparse2::GUARDUSERRIGHTS = '';
+
+        $zparse2::GUARD='off';
+        $zparse2::GUARDALLOWANONYMOUS='off';
+        $zparse2::GUARD = $REQ->dir_config( 'ZGuard' ) if defined $REQ->dir_config( 'ZGuard' );
+        $zparse2::GUARDMETHOD = $REQ->dir_config( 'ZGuardMethod' ) if defined $REQ->dir_config( 'ZGuardMethod' );
+        $zparse2::GUARDDBD = $REQ->dir_config( 'ZGuardDBD' ) if defined $REQ->dir_config( 'ZDBD' );
+        $zparse2::GUARDDBNAME = $REQ->dir_config( 'ZGuardDBName' ) if defined $REQ->dir_config( 'ZDBName' );
+        $zparse2::GUARDDBUSER = $REQ->dir_config( 'ZGuardDBUser' ) if defined $REQ->dir_config( 'ZDBUser' );
+        $zparse2::GUARDDBUSERPASS = $REQ->dir_config( 'ZGuardDBUserPass' ) if defined $REQ->dir_config( 'ZDBUserPass' );
+        $zparse2::GUARDUSERTABLE = $REQ->dir_config( 'ZGuardUserTable' ) if defined $REQ->dir_config( 'ZGuardUserTable' );
+        $zparse2::GUARDPATH = $REQ->dir_config( 'ZGuardPath' ) if defined $REQ->dir_config( 'ZGuardPath' );
+        $zparse2::GUARDALLOWANONYMOUS = $REQ->dir_config( 'ZGuardAllowAnonymous' ) if defined $REQ->dir_config( 'ZGuardAllowAnonymous' );
+        $zparse2::GUARDANONYMOUSUSER = $REQ->dir_config( 'ZGuardAnonymousUser' ) if defined $REQ->dir_config( 'ZGuardAnonymousUser' );
+        $zparse2::GUARDDEFAULTRIGHT = $REQ->dir_config( 'ZGuardDefaultRight' ) if defined $REQ->dir_config( 'ZGuardDefaultRight' );
+        $zparse2::GUARDREALM = $REQ->dir_config( 'ZGuardRealm' ) if defined $REQ->dir_config( 'ZGuardRealm' );
+        
+        $zparse2::GUARD = ( lc($zparse2::GUARD) eq 'off')?0:1;
+        $zparse2::GUARDALLOWANONYMOUS = ( lc($zparse2::GUARDALLOWANONYMOUS) eq 'off')?0:1;
+    }
+    else
+    {
+	$zparse2::GUARD = 0 unless defined($zparse2::GUARD);
+	$zparse2::GUARDMETHOD = 'DBI' unless defined($zparse2::GUARDMETHOD);
+        $zparse2::GUARDDBD = 'mysql' unless defined($zparse2::GUARDDBD);
+	$zparse2::GUARDDBNAME = '' unless defined($zparse2::GUARDDBNAME);
+        $zparse2::GUARDDBUSER = '' unless defined($zparse2::GUARDDBUSER);
+	$zparse2::GUARDDBUSERPASS = '' unless defined($zparse2::GUARDDBUSERPASS);
+        $zparse2::GUARDUSERTABLE = 'users' unless defined($zparse2::GUARDUSERTABLE);
+	$zparse2::GUARDPATH = '/' unless defined($zparse2::GUARDPATH);
+        $zparse2::GUARDALLOWANONYMOUS = 0 unless defined($zparse2::GUARDALLOWANONYMOUS);
+	$zparse2::GUARDANONYMOUSUSER = 'anonymous' unless defined($zparse2::GUARDANONYMOUSUSER);
+        $zparse2::GUARDDEFAULTRIGHT = 'default' unless defined($zparse2::GUARDDEFAULTRIGHT);
+	$zparse2::GUARDREALM = 'default' unless defined($zparse2::GUARDREALM);
+        $zparse2::GUARDUSER = '' unless defined($zparse2::GUARDUSER);
+	$zparse2::GUARDUSERRIGHTS = '' unless defined($zparse2::GUARDUSERRIGHTS);
+    }
+    return &{$zparse2::JUMPTABLE{zguardsaved_zbefore_actual_process}}( @_ );
+}
+
+sub zguard_zafter_actual_process
+{
+}
+
+sub zguard_searchright
+{
+    my ( $right, $parentid, $suffix ) = @_;
+    my ( $currentright, $restright ) = ( $right =~ /^\/([^\/]+)(.*)$/ );
+    my $result = zexecute "select * from rights where parentid=$parentid order by name";
+    while( my $datahash = $result->fetchrow_hashref )
+    {
+        if( $datahash->{multiright} )
+        {
+            my $result = zexecute $datahash->{multiright};
+            while( my $datahash2 = $result->fetchrow_hashref )
+            {
+                my $id = $datahash->{id}.$suffix.'_'.$datahash2->{id};
+                if( $datahash->{name}.$datahash2->{name} eq $currentright )
+                {
+                    return $id unless $restright ;
+                    my $id2 = zguard_searchright( $restright, $datahash->{id}, $suffix.'_'.$datahash2->{id} );
+                    return ($id, $id2) if $id2;
+                }
+            }
+        }
+        else
+        {
+            my $id = $datahash->{id}.$suffix;
+            if( $datahash->{name} eq $currentright )
+            {
+                return $id unless $restright ;
+                my $id2 = zguard_searchright( $restright, $datahash->{id}, $suffix );
+                return ($id, $id2) if $id2;
+            }
+        }
+    }
+    return 0;
+}
+
+sub zguard_zhasaccess
+{
+    if( $zparse2::GUARD )
+    {
+        # check user
+        unless( $zparse2::GUARDUSER )
+        {
+            if( zcheckcookie 'zguard', '.+' )
+            {
+
+                my %realms = split /,/, $root->{cookies}->{zguard};
+                my %passs  = split /,/, $root->{cookies}->{zguardpass};
+                my $user = $realms{$zparse2::GUARDREALM};
+                my $pass = $passs{$zparse2::GUARDREALM};
+                my $dbh = zconnect $zparse2::GUARDDBUSER, $zparse2::GUARDDBUSERPASS, $zparse2::GUARDDBNAME, $zparse2::GUARDDBD;
+                my $result = zexecute "select * from $zparse2::GUARDUSERTABLE where name=".zquote($user), $dbh;
+                my $datahash;
+                if(( $datahash = $result->fetchrow_hashref )&&( $datahash->{password} eq $pass ))
+                {
+                    $zparse2::GUARDUSER = $user;
+                    $zparse2::GUARDUSERRIGHTS = $datahash->{rights};
+                }
+            }
+            $zparse2::GUARDUSER = $zparse2::GUARDANONYMOUSUSER if (!$zparse2::GUARDUSER)&&$zparse2::GUARDALLOWANONYMOUS;
+            unless( $zparse2::GUARDUSER )
+            {
+                my $back="/";
+                if( $zparse2::MOD_PERL )
+                { $back = $REQ->header_in( 'Referer' ) if $REQ->header_in( 'Referer' ); }
+                else { $back = $ENV{HTTP_REFERER} if $ENV{HTTP_REFERER}; }
+                my $url="/";
+                if( $zparse2::MOD_PERL )
+                { $url = $REQ->uri.($REQ->args?'?'.$REQ->args:''); }
+                else { $url = $ENV{PATH_INFO}; }
+                zsendheader 'Set-Cookie: '.zcreatecookie( 'name'=>'zguardback', 'value'=>$back ) unless $back =~ /login.html$/;
+                zsendheader 'Set-Cookie: '.zcreatecookie( 'name'=>'zguardurl', 'value'=>$url );
+                zsendheader 'Set-Cookie: '.zcreatecookie( 'name'=>'zguardrealm', 'value'=>$zparse2::GUARDREALM );
+                zredirect "/login.html";
+            }
+            else
+            {
+                zerror "zguard: user $zparse2::GUARDUSER ok", 0, 'debug';
+            }
+        }
+        
+        my $right = shift;
+        unless( $right =~ /^\// )
+        {
+            zerror "zguard: right must start with /", 126, 'warning';
+            $right = '/'.$right;
+        }
+        if( my @rightid = zguard_searchright( $right, 0, '') )
+        {
+            my $ok = 1;
+            foreach my $r ( @rightid ) 
+            {
+                $ok = 0 unless index( $zparse2::GUARDUSERRIGHTS, ' '.$r.' ' )>=0;
+            }
+            return $ok;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+sub zhasaccess { return &{$zparse2::JUMPTABLE{zhasaccess}}( @_ ); }
+
+$zparse2::JUMPTABLE{zguardsaved_zbefore_actual_process} = $zparse2::JUMPTABLE{zbefore_actual_process};
+$zparse2::JUMPTABLE{zbefore_actual_process} = \&zguard_zbefore_actual_process;
+$zparse2::JUMPTABLE{zhasaccess} = \&zguard_zhasaccess;
+
+$zparse2::unloaddata = 
+    'undef &zguard_zhasright; undef &zhasright;'
+    .'undef &zguard_searchright;'
+    .'undef &zguard_zafter_actual_process; undef &zguard_zbefore_actual_process;';

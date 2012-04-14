@@ -1,0 +1,15 @@
+############################################ old ###################################################
+params	^.*$	/home/example.ru/www/datafiles/zparseparams.pl 
+
+meta			^(.*)/((.*)\.html)?$				$zparse2::DOCUMENT_ROOT/../meta/adv.meta
+
+template                ^/page\.html$                         page.html
+template                ^/portal\.html$                         portal.html
+template		^/$							/index.html
+template		^/inochi\.html$				/inochi.html
+
+script			^/$							$zparse2::DOCUMENT_ROOT/../scripts/index.pl
+
+urifile		^.*\.html$					/home/example.ru/www/html/always.html
+iurifile	^/cgi-bin/.*$					ok
+############################################ old ###################################################

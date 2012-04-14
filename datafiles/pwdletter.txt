@@ -1,0 +1,18 @@
+From: <?=$zparse2::ZSENDMAILFROMNAME!> <<?=$zparse2::ZSENDMAILFROM!>>
+Subject: <?=$zparse2::ZSENDMAILFROMNAME!> Новый пароль
+Content-type: text/plain; charset=koi8-r
+
+Здравствуйте!
+Вы изменили пароль для входа на наш сервер.
+Ваш логин: <?=$root->{reginfo}->{login}!>
+Ваш новый пароль: <?=$root->{reginfo}->{password}!>
+
+Зайдя на сайт, Вы всегда можете изменить данные своей анкеты, в том числе и пароль.
+
+--------------------
+
+You've changed the password for logging on our server.
+Your login is "<?=$root->{reginfo}->{login}!>".
+Your new password is "<?=$root->{reginfo}->{password}!>".
+
+You can always change your profile data as well as the password, when logged on our server.

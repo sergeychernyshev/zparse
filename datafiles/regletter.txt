@@ -1,0 +1,16 @@
+From: <?=$zparse2::ZSENDMAILFROMNAME!> <<?=$zparse2::ZSENDMAILFROM!>>
+Content-type: text/plain; charset=koi8-r
+
+Спасибо, за регистрацию на нашем сервере.
+Ваш логин: <?=$root->{reginfo}->{login}!>
+Ваш пароль: <?=$root->{reginfo}->{password}!>
+
+Зайдя на сайт, Вы можете изменить данные своей анкеты, в том числе и пароль. Если Вы забыли свой пароль, не нужно опять регистрироваться! Просто пришлите нам письмо-запрос, и мы вышлем Вам пароль повторно.
+
+--------------------
+
+Thank you for registration on our server KARTING.MANIA.RU.
+Your login is "<?=$root->{reginfo}->{login}!>".
+Your password is "<?=$root->{reginfo}->{password}!>".
+
+You can change your password later, when logged on our server. In case you forget your password, please do not register again, just send us an inquiry and we will resend the password to you.
